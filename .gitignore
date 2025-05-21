@@ -1,0 +1,17 @@
+# Ignore datasets and model caches
+src/data_train/
+src/data_val/
+src/val_preds
+
+# Ignore PyTorch checkpoints
+*.pth
+
+# Ignore Python bytecode
+__pycache__/
+*.pyc
+
+# Ignore Jupyter checkpoints
+.ipynb_checkpoints/
+
+# Ignore VSCode settings
+.vscode/
