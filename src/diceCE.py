@@ -10,7 +10,17 @@ class DiceLoss(torch.nn.Module):
     def forward(self, logits, targets):
         num_classes = logits.shape[1]
         logits = torch.softmax(logits, dim=1)
-        one_hot = F.one_hot(targets, num_classes=num_classes).permute(0, 3, 1, 2).float()
+        #one_hot = F.one_hot(targets, num_classes=num_classes).permute(0, 3, 1, 2).float()
+        # Clamp values outside valid class index range to ignore_index
+        targets = torch.where(targets >= num_classes, torch.tensor(self.ignore_index).to(targets.device), targets)
+
+        # Only create one-hot if within valid range
+        valid_mask = (targets != self.ignore_index)
+        safe_targets = targets.clone()
+        safe_targets[~valid_mask] = 0  # Temporarily set ignored positions to class 0 to avoid one-hot crash
+
+        one_hot = F.one_hot(safe_targets, num_classes=num_classes).permute(0, 3, 1, 2).float()
+
         
         # Ignore masked values
         mask = (targets != self.ignore_index).unsqueeze(1)

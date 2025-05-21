@@ -5,8 +5,14 @@ import torch
 import matplotlib.pyplot as plt
 import os
 
+# from model import DinoDeepLabV3SegModel
+# from model import DinoAttentionSegModel
+
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 model = DinoSegModel().to(device)
+#model = DinoDeepLabV3SegModel(freeze_dino=False).to(device)
+#model = DinoAttentionSegModel(num_classes=21, freeze_dino=True).to(device)
+
 model.load_state_dict(torch.load("/home/iiitb/Desktop/anant/playground/ProjectBytes/src/best_model.pth"))
 model.eval()
 

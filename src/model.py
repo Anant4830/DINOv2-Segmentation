@@ -27,10 +27,10 @@ class UNetDecoder(nn.Module):
         )
 
     def forward(self, x):
-        x = self.up1(x)  # 16 → 32
-        x = self.up2(x)  # 32 → 64
-        x = self.up3(x)  # 64 → 128
-        x = self.up4(x)  # 128 → ~256
+        x = self.up1(x)  # 16 -> 32 
+        x = self.up2(x)  # 32 -> 64
+        x = self.up3(x)  # 64 -> 128
+        x = self.up4(x)  # 128 -> 256
         x = F.interpolate(x, size=(224, 224), mode='bilinear', align_corners=False)  # match input size
         x = self.final_conv(x)
         return x  # [B, num_classes, 224, 224]
@@ -209,10 +209,14 @@ class DinoAttentionSegModel(nn.Module):
     def forward(self, x):
         # DINOv2 outputs [B, N, C], need to reshape into spatial map
         features = self.dino(x).last_hidden_state  # [B, N, C]
+        features = features[:, 1:, :] 
         B, N, C = features.shape
         H = W = int(N ** 0.5)
         features = features.permute(0, 2, 1).reshape(B, C, H, W)  # [B, C, H, W]
+        features = self.decoder(features)
+        features = F.interpolate(features, size=(224, 224), mode='bilinear', align_corners=False)  # match label size
 
-        return self.decoder(features)
+        #return self.decoder(features)
+        return features
 
 

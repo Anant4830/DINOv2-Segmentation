@@ -1,8 +1,8 @@
 from dataset import VOCSegmentationWithPIL
 from dataset import collate_fn_pil
-#from model import DinoSegModel
+from model import DinoSegModel
 #from model import DinoAttentionSegModel
-from model import DinoDeepLabV3SegModel
+#from model import DinoDeepLabV3SegModel
 
 from transformers import AutoImageProcessor
 
@@ -65,15 +65,15 @@ ignore_index = 255
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # Model
-#model = DinoSegModel(freeze_dino=True).to(device)
-model = DinoDeepLabV3SegModel(freeze_dino=False).to(device)
+model = DinoSegModel(freeze_dino=True).to(device)
+#model = DinoDeepLabV3SegModel(freeze_dino=False).to(device)
 #model = DinoAttentionSegModel(num_classes=21, freeze_dino=True).to(device)
 
 
 image_processor = AutoImageProcessor.from_pretrained("facebook/dinov2-large")
 
 # Loss, Optimizer, Scheduler
-criterion = nn.CrossEntropyLoss(ignore_index=ignore_index)
+#criterion = nn.CrossEntropyLoss(ignore_index=ignore_index)
 
 
 #lovasz_losses
@@ -83,8 +83,8 @@ criterion = nn.CrossEntropyLoss(ignore_index=ignore_index)
 # criterion = lovasz_loss_fn
 
 #dice+CE loss
-# from diceCE import DiceCELoss
-# criterion = DiceCELoss(ignore_index=255)
+from diceCE import DiceCELoss
+criterion = DiceCELoss(ignore_index=255)
 
 
 optimizer = optim.Adam(filter(lambda p: p.requires_grad, model.parameters()), lr=1e-4)
@@ -94,7 +94,7 @@ scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0
 miou_metric = MulticlassJaccardIndex(num_classes=num_classes, ignore_index=ignore_index).to(device)
 
 # Training config
-num_epochs = 50
+num_epochs = 20
 train_losses, val_losses, val_ious = [], [], []
 
 # Paths
@@ -171,7 +171,7 @@ for epoch in range(start_epoch, num_epochs):
     train_losses.append(avg_train_loss)
 
     # Evaluate only every 10 epochs
-    if (epoch + 1) % 10 == 0:
+    if (epoch + 1) % 20 == 0:
         avg_val_loss, val_miou = evaluate(model, val_loader, criterion, image_processor, device, epoch)
         scheduler.step(avg_val_loss)
         val_losses.append(avg_val_loss)
