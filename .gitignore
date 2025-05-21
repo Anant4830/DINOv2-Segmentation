@@ -1,7 +1,7 @@
 # Ignore datasets and model caches
 src/data_train/
 src/data_val/
-src/val_preds
+src/val_preds/
 
 # Ignore PyTorch checkpoints
 *.pth
