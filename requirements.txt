@@ -1,0 +1,11 @@
+torch>=2.0.0
+torchvision>=0.15.0
+transformers>=4.35.0          # For DINOv2 (facebook/dinov2-large)
+segmentation-models-pytorch   # For DeepLabV3+ and other decoders
+timm>=0.6.13                  # needed when using ViT backbones
+numpy                         # for coputation
+matplotlib                    # For plotting training/validation loss
+opencv-python                 # For image processing, loading masks etc.
+Pillow                        # For image reading and saving
+scikit-learn                  # For metrics like accuracy, IoU etc.
+tqdm                         # For progress bars
