@@ -85,34 +85,80 @@ class DinoSegModelWithAttention(nn.Module):
 
 # Point 3 in Bonus Points    
 # DeepLab model for comparison
-class DinoDeepLabV3Plus(nn.Module):
-    def __init__(self, num_classes=21, freeze_dino=True):
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
+class ASPP(nn.Module):
+    def __init__(self, in_channels, out_channels):
         super().__init__()
-        self.dino = AutoModel.from_pretrained("facebook/dinov2-large")
-        self.freeze_dino = freeze_dino
+        self.atrous_block1 = nn.Conv2d(in_channels, out_channels, kernel_size=1, padding=0, dilation=1)
+        self.atrous_block6 = nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=6, dilation=6)
+        self.atrous_block12 = nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=12, dilation=12)
+        self.atrous_block18 = nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=18, dilation=18)
+        self.global_avg_pool = nn.Sequential(
+            nn.AdaptiveAvgPool2d(1),
+            nn.Conv2d(in_channels, out_channels, kernel_size=1),
+            nn.ReLU()
+        )
+
+        self.conv1 = nn.Conv2d(out_channels * 5, out_channels, kernel_size=1)
+        self.relu = nn.ReLU()
+        self.dropout = nn.Dropout(0.5)
+
+    def forward(self, x):
+        size = x.shape[2:]
+        img_pool = self.global_avg_pool(x)
+        img_pool = F.interpolate(img_pool, size=size, mode='bilinear', align_corners=False)
+
+        x1 = self.atrous_block1(x)
+        x2 = self.atrous_block6(x)
+        x3 = self.atrous_block12(x)
+        x4 = self.atrous_block18(x)
+
+        x = torch.cat([x1, x2, x3, x4, img_pool], dim=1)
+        x = self.conv1(x)
+        x = self.relu(x)
+        return self.dropout(x)
+
+class DeepLabV3PlusDecoder(nn.Module):
+    def __init__(self, in_channels=1024, num_classes=21):
+        super().__init__()
+        self.aspp = ASPP(in_channels, 256)
+        self.decoder = nn.Sequential(
+            nn.Conv2d(256, 128, kernel_size=3, padding=1),
+            nn.BatchNorm2d(128),
+            nn.ReLU(),
+            nn.Conv2d(128, num_classes, kernel_size=1)
+        )
+
+    def forward(self, x):
+        x = self.aspp(x)
+        x = self.decoder(x)
+        x = F.interpolate(x, scale_factor=16, mode='bilinear', align_corners=False)  # Upsample to original image size
+        #x = F.interpolate(x, scale_factor=(224, 224), mode='bilinear', align_corners=False)  # Upsample to original image size
+        return x
+
+class DinoDeepLabV3SegModel(nn.Module):
+    def __init__(self, freeze_dino=True, num_classes=21):
+        super().__init__()
+        self.dino = Dinov2Model.from_pretrained("facebook/dinov2-large")
+        self.decoder = DeepLabV3PlusDecoder(in_channels=1024, num_classes=num_classes)
 
         if freeze_dino:
             for param in self.dino.parameters():
                 param.requires_grad = False
 
-        # SMP requires an encoder with feature extraction
-        # We mimic DINO features as an encoder output here.
-        # You may need to map DINO's outputs accordingly.
-        self.seg_head = smp.DeepLabV3Plus(
-            encoder_name=None,             # We're passing our own encoder
-            encoder_weights=None,
-            in_channels=1024,              # DINOv2-large last hidden size
-            classes=num_classes,
-        )
+    def forward(self, pixel_values):  # [B, 3, 224, 224]
+        B, _, H, W = pixel_values.shape  # get input size
+        feats = self.dino(pixel_values).last_hidden_state  # [B, 257, 1024]
+        feats = feats[:, 1:, :]  # remove CLS token
+        feats = feats.reshape(-1, 16, 16, 1024).permute(0, 3, 1, 2)  # [B, 1024, 16, 16]
+        seg_logits = self.decoder(feats)  # [B, num_classes, 224, 224]
+        seg_logits = F.interpolate(seg_logits, size=(H, W), mode='bilinear', align_corners=False)  # match input size
+        return seg_logits    
 
-    def forward(self, x):
-        features = self.dino(x).last_hidden_state  # [B, num_patches, C]
-        B, N, C = features.shape
-        H = W = int(N ** 0.5)  # assuming square image
-        features = features.permute(0, 2, 1).reshape(B, C, H, W)  # reshape for SMP
-        return self.seg_head(features)
-
-# Point 3 in Bonus Points     
+# Point 4 in Bonus Points     
 # attention based model:
 import torch.nn as nn
 from transformers import AutoModel

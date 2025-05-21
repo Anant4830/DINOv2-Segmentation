@@ -1,8 +1,8 @@
 from dataset import VOCSegmentationWithPIL
 from dataset import collate_fn_pil
-from model import DinoSegModel
-# from model import DinoAttentionSegModel
-# from model import DinoDeepLabV3Plus
+#from model import DinoSegModel
+#from model import DinoAttentionSegModel
+from model import DinoDeepLabV3SegModel
 
 from transformers import AutoImageProcessor
 
@@ -65,9 +65,9 @@ ignore_index = 255
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # Model
-model = DinoSegModel(freeze_dino=True).to(device)
-# model = DinoDeepLabV3Plus(freeze_dino=False).to(device)
-# model = DinoAttentionSegModel(num_classes=21, freeze_dino=True).to(device)
+#model = DinoSegModel(freeze_dino=True).to(device)
+model = DinoDeepLabV3SegModel(freeze_dino=False).to(device)
+#model = DinoAttentionSegModel(num_classes=21, freeze_dino=True).to(device)
 
 
 image_processor = AutoImageProcessor.from_pretrained("facebook/dinov2-large")
@@ -94,7 +94,7 @@ scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0
 miou_metric = MulticlassJaccardIndex(num_classes=num_classes, ignore_index=ignore_index).to(device)
 
 # Training config
-num_epochs = 200
+num_epochs = 50
 train_losses, val_losses, val_ious = [], [], []
 
 # Paths
@@ -171,7 +171,7 @@ for epoch in range(start_epoch, num_epochs):
     train_losses.append(avg_train_loss)
 
     # Evaluate only every 10 epochs
-    if (epoch + 1) % 20 == 0:
+    if (epoch + 1) % 10 == 0:
         avg_val_loss, val_miou = evaluate(model, val_loader, criterion, image_processor, device, epoch)
         scheduler.step(avg_val_loss)
         val_losses.append(avg_val_loss)
