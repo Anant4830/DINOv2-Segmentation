@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Ignore datasets and model caches
 src/data_train/
 src/data_val/
@@ -15,3 +16,9 @@ __pycache__/
 
 # Ignore VSCode settings
 .vscode/
+=======
+src/data_val/
+src/data_train/
+*.pth
+*.pt
+>>>>>>> b8f2a24 (Clean start: remove large files)
